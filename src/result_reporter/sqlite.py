@@ -2,6 +2,7 @@ import sqlalchemy as sa
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import sessionmaker, Mapped, mapped_column, declarative_base
 from typing import List
+from type import Model_Config, Simulation_Config
 
 INIT = False
 dbName = '../db/lodegp_test4.db'
@@ -52,18 +53,6 @@ class SimulationConfig(Base):
     rms: Mapped[float]
 
     def __repr__(self):
-        # config = {
-        #     'id': self.id,
-        #     'system': self.system,
-        #     'model_id': self.model_id,
-        #     'init_state': self.init_state,
-        #     'system_param': self.system_param,
-        #     't_start': self.t_start,
-        #     't_end': self.t_end,
-        #     'dt': self.dt,
-        #     'rms': self.rms
-        # }
-        # return config
         return f"SimulationConfig(id={self.id}, system={self.system}, model_id={self.model_id} init_state={self.init_state}, system_param={self.system_param}, t_start={self.t_start}, t_end={self.t_end}, dt={self.dt})"
     
 
@@ -212,50 +201,117 @@ def add_simulation_data(simulation_id:int, model_id:int, system:str,  time, stat
 # getters
 # ----------------------------
 
-def get_model_config(id:int=None, system:str=None):
-    init()
-    with Session() as session:
-        if id is not None:
-            #return session.query(ModelConfig).filter_by(id=id)
-            return session.get(ModelConfig, id)
-        elif system is not None:
-            statement = sa.select(SimulationConfig).filter_by(system=system)
-            return session.scalars(statement).all()
-        else:
-            return session.query(ModelConfig).all()
-    
-
-
-def get_simulation_config(id:int=None, model_id:int=None, system:str=None):
-    init()
-    with Session() as session:
-        if id is not None:
-            return session.get(SimulationConfig, id)
-        elif model_id is not None:
-            statement = sa.select(SimulationConfig).filter_by(model_id=model_id)
-            return session.scalars(statement).all()
-        elif system is not None:
-            statement = sa.select(SimulationConfig).filter_by(system=system)
-            return session.scalars(statement).all()
-        else:
-            return session.query(SimulationConfig).all()
-
-def get_training_data(id:int):
-    init()
-    with Session() as session:
-        statement = sa.select(Training_Data).filter_by(model_id=id)
-        return session.scalars(statement).all()
-
-def get_simulation_data(id:int):
-    init()
-    with Session() as session:
-        statement = sa.select(Simulation_Data).filter_by(simulation_id=id)
-        return session.scalars(statement).all()
-    
+def convert_config_values(config):
+    config['init_state'] =  str_lst(config['init_state'])
+    config['system_param'] = str_lst(config['system_param'])
+    return config
 
 def lst_str(lst: List[float]) -> str:
     return ', '.join(map(str, lst))
 
 def str_lst(s: str) -> List[float]:
     return list(map(float, s.split(',')))
+
+def convert_data(data):
+    '''
+    FIXME: this function is very ugly but element is not subscriptable
+    - could it be faster to transform every element to a dict?
+    '''
+    state_n = 5
+    time = []
+    states = []
+
+    data_dict = {
+        'time': [],
+        'f1': [],
+        'f2': [],
+        'f3': [],
+        'f4': [],
+        'f5': []
+    }
+
+    for element in data:
+        state_row = []
+        time.append(element.t)
+        data_dict['time'].append(element.t)
+        data_dict['f1'].append(element.f1)
+        data_dict['f2'].append(element.f2)
+        data_dict['f3'].append(element.f3)
+        data_dict['f4'].append(element.f4)
+        data_dict['f5'].append(element.f5)
+        
+    #     for i in range(0, state_n):
+    #         if element[f'f{i+1}'] is not None:
+    #             state_row.append(element[f'f{i+1}'])
+    #         else:
+    #             state_n = i
+    #             break
+    #     states.append(state_row)
+
+    # return time, states
+    if data_dict['f5'][0] is None:
+        del data_dict['f5']
+    if data_dict['f4'][0] is None:
+        del data_dict['f4']
+    if data_dict['f3'][0] is None:
+        del data_dict['f3']
+    if data_dict['f2'][0] is None:
+        del data_dict['f2']
+    if data_dict['f1'][0] is None:
+        del data_dict['f1']
+    return data_dict
+
+def get_model_config(id:int=None, system:str=None)->List[Model_Config] | Model_Config:
+    init()
+    with Session() as session:
+        if id is not None:
+            #return session.query(ModelConfig).filter_by(id=id)
+            config = session.get(ModelConfig, id).__dict__
+            return convert_config_values(config)
+        else:
+            if system is not None:
+                statement = sa.select(ModelConfig).filter_by(system=system)
+                result = session.scalar(statement).all() 
+                #with session.execute() one could call .as_dict() on the result
+            else:
+                result =  session.query(ModelConfig).all()
+
+            return [convert_config_values(element.__dict__) for element in result]
+    
+
+
+def get_simulation_config(id:int=None, model_id:int=None, system:str=None)->List[Simulation_Config] | Simulation_Config:
+    init()
+    with Session() as session:
+        if id is not None:
+            return session.get(SimulationConfig, id).__dict__
+        else:
+            if model_id is not None:
+                statement = sa.select(SimulationConfig).filter_by(model_id=model_id)
+                result =  session.scalars(statement).all()
+            
+            elif system is not None:
+                statement = sa.select(SimulationConfig).filter_by(system=system)
+                result =  session.scalars(statement).all()
+            else:
+                result = session.query(SimulationConfig).all()
+            
+            return [convert_config_values(element.__dict__) for element in result]
+
+def get_training_data(id:int):
+    init()
+    with Session() as session:
+        statement = sa.select(Training_Data).filter_by(model_id=id)
+        data = session.scalars(statement).all()
+    return convert_data(data)
+
+def get_simulation_data(id:int):
+    init()
+    with Session() as session:
+        statement = sa.select(Simulation_Data).filter_by(simulation_id=id)
+        data = session.scalars(statement).all()
+    return convert_data(data)
+    
+
+
 

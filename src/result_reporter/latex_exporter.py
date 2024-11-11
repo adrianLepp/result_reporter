@@ -57,5 +57,31 @@ def saveSingleImageToPdf(folder, fileName, header:List[str], xLabel='Time [s]', 
     fig.savefig(imgFolder + fileName + '.pdf', format=fileFormat, bbox_inches='tight')
 
 
-name='0_lodegp_bipendulum'
-saveSingleImageToPdf(fileFolder, name, ['time', 'f1', 'f2', 'f3'], title='Simulation data')
+def create_report_plot(training_data, sim_data, header:List[str], xLabel='Time [s]', yLabel='y', title=None):
+    rows = 1
+    cols = 1
+    scale = 1
+    frac = 1
+
+    fig, ax = plt.subplots(rows, cols, figsize=set_size(scale*textWidth, frac, (rows, cols)))
+
+
+
+    for i in range(len(header)):
+        ax.plot(training_data['time'], training_data[f'f{i+1}'], label=header[i], linestyle='--')
+        ax.plot(sim_data['time'], sim_data[f'f{i+1}'], label='train ' + header[i])
+        
+
+    ax.legend()
+    ax.set_xlabel(xLabel)
+    ax.set_ylabel(yLabel)
+    ax.grid(True)
+    if title:
+        ax.set_title(title)
+
+    fig.tight_layout()
+    return fig
+
+
+# name='0_lodegp_bipendulum'
+# saveSingleImageToPdf(fileFolder, name, ['time', 'f1', 'f2', 'f3'], title='Simulation data')
