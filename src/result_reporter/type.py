@@ -1,5 +1,11 @@
 from typing import TypedDict, List, Optional
 
+class System_Description(TypedDict):
+    id:int
+    name:str
+    states:List[str]
+    parameters:List[str]
+
 class Model_Config(TypedDict):
     id:int
     system:str
@@ -18,7 +24,8 @@ class Simulation_Config(TypedDict):
     dt:float
     init_state:List[float]
     system_param:List[float]
-    rms:float
+    rms:List[float]
+    date:str
 
 class Data(TypedDict):
     time:List[float]

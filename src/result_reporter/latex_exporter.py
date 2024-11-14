@@ -3,9 +3,9 @@ import os.path as path
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
-from plotConfig import set_size
+from result_reporter.plotConfig import set_size
 import pandas as pd
-from data_loader import loadDataFromCSV, loadParamfromJson
+from result_reporter.data_loader import loadDataFromCSV, loadParamfromJson
 from typing import List
 
 print(plt.style.available)
@@ -15,8 +15,11 @@ print("Your style sheets are located at: {}".format(path.join(mpl.__path__[0], '
 
 
 #plt.style.use('seaborn')
-plt.style.use('seaborn-v0_8-paper')
-plt.style.use('tex')
+try:
+    plt.style.use('seaborn-v0_8-paper')
+    plt.style.use('tex')
+except:
+    print('style not found')
 # in LaTex show the textWidth with '\the\textwidth'
 textWidth= 469.4704 #TODO: environment variable
 
@@ -82,6 +85,5 @@ def create_report_plot(training_data, sim_data, header:List[str], xLabel='Time [
     fig.tight_layout()
     return fig
 
-
-# name='0_lodegp_bipendulum'
-# saveSingleImageToPdf(fileFolder, name, ['time', 'f1', 'f2', 'f3'], title='Simulation data')
+def save_plot_to_pdf(fig, fileName):
+    fig.savefig(imgFolder + fileName + '.pdf', format=fileFormat, bbox_inches='tight')

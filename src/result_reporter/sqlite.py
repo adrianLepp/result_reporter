@@ -2,22 +2,42 @@ import sqlalchemy as sa
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import sessionmaker, Mapped, mapped_column, declarative_base
 from typing import List
-from type import Model_Config, Simulation_Config
+import json
+from datetime import datetime
+#-------------------------------------------------------------------------------
+from result_reporter.type import Model_Config, Simulation_Config, System_Description, Data
 
 INIT = False
-dbName = '../db/lodegp_test4.db'
+CONFIG_FILE = 'config.json'
 Base = declarative_base()
 
 def init():
     global db, Session, Base, INIT
     if not INIT:
+        with open(CONFIG_FILE,"r") as f:
+            config = json.load(f)
+        dbName = config['db_file']
         db = sa.create_engine('sqlite:///' + dbName)
         Session = sessionmaker(bind=db)
         INIT = True
 
-# db = sa.create_engine('sqlite:///' + dbName)
-# Session = sessionmaker(bind=db)
-# Base = declarative_base()
+# ------------------------------------------------------------------------------------
+# Table Classes
+# ------------------------------------------------------------------------------------
+
+class SystemDescription(Base):
+    '''
+    id, system, states, parameters
+    '''
+    __tablename__ = 'system_description'
+    
+    id: Mapped[int] = mapped_column(primary_key=True, index=True, unique=True)
+    system: Mapped[str] = mapped_column(unique=True)
+    states: Mapped[str]
+    parameters: Mapped[str]
+
+    def __repr__(self):
+        return f"SystemDescription(id={self.id}, system={self.system}, states={self.states}, parameters={self.parameters}))"
 
 class ModelConfig(Base):
     '''
@@ -26,7 +46,7 @@ class ModelConfig(Base):
     __tablename__ = 'model_config'
     
     id: Mapped[int] = mapped_column(primary_key=True, index=True, unique=True)
-    system: Mapped[str] 
+    system: Mapped[str]  = mapped_column(ForeignKey('system_description.system'))
     init_state: Mapped[str]
     system_param: Mapped[str]
     t_start: Mapped[float] 
@@ -43,50 +63,30 @@ class SimulationConfig(Base):
     __tablename__ = 'simulation_config'
     
     id: Mapped[int] = mapped_column(primary_key=True, index=True, unique=True)
-    system: Mapped[str]
+    system: Mapped[str]  = mapped_column(ForeignKey('system_description.system'))
     model_id: Mapped[int] = mapped_column(ForeignKey('model_config.id'))
     init_state: Mapped[str]
     system_param: Mapped[str]
     t_start: Mapped[float] 
     t_end: Mapped[float] 
     dt: Mapped[float] 
-    rms: Mapped[float]
+    rms: Mapped[str]
+    date: Mapped[str]
 
     def __repr__(self):
-        return f"SimulationConfig(id={self.id}, system={self.system}, model_id={self.model_id} init_state={self.init_state}, system_param={self.system_param}, t_start={self.t_start}, t_end={self.t_end}, dt={self.dt})"
+        #return f"SimulationConfig(id={self.id}, system={self.system}, model_id={self.model_id} init_state={self.init_state}, system_param={self.system_param}, t_start={self.t_start}, t_end={self.t_end}, dt={self.dt})"
+        return f"SimulationConfig(id={self.id}, system={self.system}, model_id={self.model_id} date={self.date})"
     
-
-def add_modelConfig(id:int, system:str, init_state:List[float], system_param:List[float], t_start:float, t_end:float, dt:float):
-    init()
-    model_config = ModelConfig(id=id, system=system, init_state=lst_str(init_state), system_param=lst_str(system_param), t_start=t_start, t_end=t_end, dt=dt)
-    commitData(model_config)
-    
-
-def add_simulationConfig(id:int, model_id:int, system:str, init_state:List[float], system_param:List[float], t_start:float, t_end:float, dt:float, rms:float):
-    init()
-    #Base.metadata.create_all(db)
-    simulation_config = SimulationConfig(id=id, model_id=model_id, system=system, init_state=lst_str(init_state), system_param=lst_str(system_param), t_start=t_start, t_end=t_end, dt=dt, rms=rms)
-    commitData(simulation_config)
-    # with Session() as session:
-    #     session.add(simulation_config)
-    #     session.commit()
-
-def commitData(entry):
-    Base.metadata.create_all(db)
-    with Session() as session:
-        session.add(entry)
-        session.commit()
-
 class Training_Data(Base):
     '''
-    model_id, system,  t, x1, x2, x3, x4, x5    
+    model_id, t, x1, x2, x3, x4, x5    
     '''
     __tablename__ = 'training_data'
     
     id: Mapped[int] = mapped_column(primary_key=True)
     #id = Column(Integer, primary_key=True, autoincrement=True)
     model_id: Mapped[int] = mapped_column(ForeignKey('model_config.id'))
-    system: Mapped[str]
+    #system: Mapped[str]  = mapped_column(ForeignKey('system_description.system'))
     t: Mapped[float] 
     f1 : Mapped[float] = mapped_column(default=None, nullable=True)
     f2 : Mapped[float] = mapped_column(default=None, nullable=True)
@@ -95,18 +95,18 @@ class Training_Data(Base):
     f5 : Mapped[float] = mapped_column(default=None, nullable=True)
 
     def __repr__(self): #id={self.id}, 
-        return f"Training_Data(system={self.system}, model_id={self.model_id}, t={self.t}, f1={self.f1}, f2={self.f2}, f3={self.f3}, f4={self.f4}, f5={self.f5})"
+        return f"Training_Data(t={self.t}, f1={self.f1}, f2={self.f2}, f3={self.f3}, f4={self.f4}, f5={self.f5})"
 
 class Simulation_Data(Base):
     '''
-    model_id, system,  simulation_id, t, x1, x2, x3, x4, x5    
+    simulation_id, t, x1, x2, x3, x4, x5    
     '''
     __tablename__ = 'simulation_data'
     
     id: Mapped[int] = mapped_column(primary_key=True)
     simulation_id: Mapped[int] = mapped_column(ForeignKey('simulation_config.id'))
-    model_id: Mapped[int] = mapped_column(ForeignKey('model_config.id'))
-    system: Mapped[str]
+    #model_id: Mapped[int] = mapped_column(ForeignKey('model_config.id'))
+    #system: Mapped[str]  = mapped_column(ForeignKey('system_description.system'))
     t: Mapped[float] 
     f1 : Mapped[float] = mapped_column(default=None, nullable=True)
     f2 : Mapped[float] = mapped_column(default=None, nullable=True)
@@ -115,7 +115,41 @@ class Simulation_Data(Base):
     f5 : Mapped[float] = mapped_column(default=None, nullable=True)
 
     def __repr__(self):#id={self.id}, 
-        return f"Simulation_Data(system={self.system}, simulation_id={self.simulation_id}, model_id={self.model_id}, t={self.t}, f1={self.f1}, f2={self.f2}, f3={self.f3}, f4={self.f4}, f5={self.f5})"
+        return f"Simulation_Data(t={self.t}, f1={self.f1}, f2={self.f2}, f3={self.f3}, f4={self.f4}, f5={self.f5})"
+    
+# ------------------------------------------------------------------------------------
+# add Data
+# ------------------------------------------------------------------------------------
+
+def commitData(entry):
+    Base.metadata.create_all(db)
+    with Session() as session:
+        session.add(entry)
+        session.commit()
+
+def add_systemDescription(system:str, states:List[str], parameters:List[str]):
+    init()
+    _states = list_to_str(states, dtype=str)
+    _parameters = list_to_str(parameters, dtype=str)
+    system_description = SystemDescription(system=system, states=_states, parameters=_parameters)
+    commitData(system_description)
+
+def add_modelConfig(id:int, system:str, init_state:List[float], system_param:List[float], t_start:float, t_end:float, dt:float):
+    init()
+    _init_state = list_to_str(init_state, dtype=float)
+    _system_param = list_to_str(system_param, dtype=float)
+    model_config = ModelConfig(id=id, system=system, init_state=_init_state, system_param=_system_param, t_start=t_start, t_end=t_end, dt=dt)
+    commitData(model_config)
+    
+
+def add_simulationConfig(id:int, model_id:int, system:str, init_state:List[float], system_param:List[float], t_start:float, t_end:float, dt:float, rms:List[float]):
+    init()
+    today = datetime.today().strftime('%d.%m.%Y')
+    _init_state = list_to_str(init_state, dtype=float)
+    _system_param = list_to_str(system_param, dtype=float)
+    _rms = list_to_str(rms, dtype=float)
+    simulation_config = SimulationConfig(id=id, model_id=model_id, system=system, init_state=_init_state, system_param=_system_param, t_start=t_start, t_end=t_end, dt=dt, rms=_rms, date=today)
+    commitData(simulation_config)
 
 def data_to_dict(time, states):
     data = []
@@ -131,7 +165,7 @@ def addBulkData(bulk_list):
         session.bulk_save_objects(bulk_list)
         session.commit()
 
-def add_training_data(model_id:int, system:str,  time, states):#id:int
+def add_training_data(model_id:int, time, states):
     init()
     data = data_to_dict(time, states)
 
@@ -139,80 +173,44 @@ def add_training_data(model_id:int, system:str,  time, states):#id:int
     # bulk insert
     bulk_list = []
     for i in range(len(time)):
-        bulk_list.append(Training_Data(model_id=model_id, system=system,  t=time[i], **data[i]))
+        bulk_list.append(Training_Data(model_id=model_id, t=time[i], **data[i]))
 
     addBulkData(bulk_list)
 
-def add_simulation_data(simulation_id:int, model_id:int, system:str,  time, states):#id:int, 
+def add_simulation_data(simulation_id:int, time, states):
     init()
     data = data_to_dict(time, states)
     # bulk insert
     bulk_list = []
     for i in range(len(time)):
-        bulk_list.append(Simulation_Data(simulation_id=simulation_id, model_id=model_id, system=system, t=time[i], **data[i]))
+        bulk_list.append(Simulation_Data(simulation_id=simulation_id, t=time[i], **data[i]))
 
     addBulkData(bulk_list)
 
-# def add_data(type:str, id:int, time, states, system:str, model_id:int, simulation_id:int=None):
-#     #TODO how do i format the data
-#     #https://docs.sqlalchemy.org/en/20/changelog/whatsnew_20.html#change-6047
-#     #https://stackoverflow.com/questions/3659142/bulk-insert-with-sqlalchemy-orm
-#     data = {'time': time}
-#     for i in range(len(states[1])):
-#         data[f'f{i+1}'] = states[:, i]
-    
-#     if type == 'training':
-#         entry = Training_Data(**data)
-#     elif type == 'simulation':
-#         entry = Simulation_Data(id, system, model_id, simulation_id, time, **data)
-
-
-#     # bulk insert
-#     bulk_list = []
-#     for i in range(len(time)):
-#         bulk_list.append(Training_Data(id, system, model_id, time[i], **data[i]))
-
-#     with Session() as session:
-#         session.bulk_save_objects(bulk_list)
-#         session.commit()
-
-    # add
-    # with Session() as session:
-    #     for i in range(len(time)):
-    #         session.add(Training_Data(id, system, model_id, time[i], **data[i]))
-    #     session.commit()
-
-    # # add all
-    # bulk_list = []
-    # for i in range(len(time)):
-    #     bulk_list.append(Training_Data(id, system, model_id, time[i], **data[i]))
-
-    # with Session() as session:
-    #     session.add_all(bulk_list)
-    #     session.commit()
-
-    
-
-
-    
-    #commitData(entry)
-
-# ----------------------------
-# getters
-# ----------------------------
+# ------------------------------------------------------------------------------------
+# get Data
+# ------------------------------------------------------------------------------------
 
 def convert_config_values(config):
-    config['init_state'] =  str_lst(config['init_state'])
-    config['system_param'] = str_lst(config['system_param'])
+    config['init_state'] =  str_to_list(config['init_state'], dtype=float)
+    config['system_param'] = str_to_list(config['system_param'], dtype=float)
+    if 'rms' in config:
+        config['rms'] = str_to_list(config['rms'], dtype=float)
     return config
 
-def lst_str(lst: List[float]) -> str:
-    return ', '.join(map(str, lst))
+def list_to_str(lst: List, dtype: type = float) -> str:
+    return ', '.join(map(str, map(dtype, lst)))
 
-def str_lst(s: str) -> List[float]:
-    return list(map(float, s.split(',')))
+def str_to_list(s: str, dtype: type = float) -> List:
+    return list(map(dtype, s.split(',')))
 
-def convert_data(data):
+# def lst_str(lst: List[float]) -> str:
+#     return ', '.join(map(str, lst))
+
+# def str_lst(s: str) -> List[float]:
+#     return list(map(float, s.split(',')))
+
+def convert_data(data) -> Data:
     '''
     FIXME: this function is very ugly but element is not subscriptable
     - could it be faster to transform every element to a dict?
@@ -261,6 +259,25 @@ def convert_data(data):
         del data_dict['f1']
     return data_dict
 
+def get_system_description(id:int=None, system:str=None) -> List[System_Description] | System_Description:
+    init()
+    with Session() as session:
+        if id is not None:
+            config = session.get(SystemDescription, id).__dict__
+            config['states'] = str_to_list(config['states'], dtype=str)
+            config['parameters'] = str_to_list(config['parameters'], dtype=str)
+            return config
+        elif system is not None: 
+            statement = sa.select(SystemDescription).filter_by(system=system)
+            config = session.scalars(statement).one().__dict__
+        
+            config['states'] = str_to_list(config['states'], dtype=str)
+            config['parameters'] = str_to_list(config['parameters'], dtype=str)
+            return config
+        else:
+            result = session.query(SystemDescription).all()
+            return [element.__dict__ for element in result]
+
 def get_model_config(id:int=None, system:str=None)->List[Model_Config] | Model_Config:
     init()
     with Session() as session:
@@ -284,7 +301,8 @@ def get_simulation_config(id:int=None, model_id:int=None, system:str=None)->List
     init()
     with Session() as session:
         if id is not None:
-            return session.get(SimulationConfig, id).__dict__
+            config =  session.get(SimulationConfig, id).__dict__
+            return convert_config_values(config)
         else:
             if model_id is not None:
                 statement = sa.select(SimulationConfig).filter_by(model_id=model_id)
