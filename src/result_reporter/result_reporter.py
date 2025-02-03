@@ -3,8 +3,7 @@ from pylatex import Document, Figure, NoEscape, Section, Itemize, Subsection
 import json
 # ---------------------------------------
 from result_reporter.latex_exporter import create_report_plot
-from result_reporter.sqlite import get_model_config, get_simulation_config, get_training_data, get_simulation_data, get_system_description
-from result_reporter.type import Model_Config, Simulation_Config, Data, System_Description
+from result_reporter.data_loader import load_data
 
 NUMBERING = False
 CONFIG_FILE = 'config.json'
@@ -14,24 +13,14 @@ figureWidth = r"0.8\textwidth"
 def parse_float(value:float):
     return f"{value:.2e}"
 
-def load_data(sim_id):
-    simulation_config:Simulation_Config = get_simulation_config(sim_id)
-    model_id = simulation_config['model_id']
-    system_description:System_Description = get_system_description(system=simulation_config['system'])
-    model_config:Model_Config = get_model_config(model_id)
-    training_data:Data = get_training_data(model_id)
-    simulation_data:Data = get_simulation_data(sim_id)
-
-    return simulation_config, model_config, system_description, training_data, simulation_data
-
 def get_report_folder():
     with open(CONFIG_FILE,"r") as f:
         config = json.load(f)
     return config['report_folder']
 
-def create_report(sim_id, info_text:str=None):
+def create_report(sim_id, info_text:str=None, extra_plot:str=None):
     matplotlib.use("Agg")  # Not to use X server. For TravisCI.
-    simulation_config, model_config, system_description,training_data, simulation_data = load_data(sim_id)
+    simulation_config, model_config, system_description,training_data, simulation_data, reference_data = load_data(sim_id)
     dir = get_report_folder()
 
 
@@ -55,7 +44,7 @@ def create_report(sim_id, info_text:str=None):
             itemize.add_item(f"Simulation Date: {simulation_config['date']}")
         
         with doc.create(Figure(position="htbp")) as plot:
-            create_report_plot(training_data, simulation_data, system_description['states'])
+            create_report_plot(training_data, simulation_data, system_description['states'], reference_data=reference_data)
             plot.add_plot(width=NoEscape(figureWidth))
             plot.add_caption("Simulation results")
 
@@ -79,7 +68,10 @@ def create_report(sim_id, info_text:str=None):
                     doc.append(f"{state}, ")
                 doc.append("] = [")
                 for i, state in enumerate(system_description['states']):
-                    doc.append(f"{parse_float(model_config['init_state'][i])}, ")
+                    try:
+                        doc.append(f"{parse_float(model_config['init_state'][i])}, ")
+                    except:
+                        pass
                 doc.append("]")
                 
         with doc.create(Subsection("Metrics", numbering=NUMBERING)):
@@ -87,4 +79,9 @@ def create_report(sim_id, info_text:str=None):
                 rms = [parse_float(item) for item in simulation_config['rms']]
                 itemize.add_item(f"RMS: {simulation_config['rms']}")
 
-    doc.generate_pdf(clean_tex=False)
+        if extra_plot is not None:
+            with doc.create(Figure(position="htbp")) as plot:
+                plot.add_image(dir + extra_plot, width=NoEscape(figureWidth))
+                plot.add_caption("Extra plot")
+                
+    doc.generate_pdf(clean_tex=True)

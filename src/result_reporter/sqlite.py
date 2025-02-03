@@ -117,6 +117,26 @@ class Simulation_Data(Base):
     def __repr__(self):#id={self.id}, 
         return f"Simulation_Data(t={self.t}, f1={self.f1}, f2={self.f2}, f3={self.f3}, f4={self.f4}, f5={self.f5})"
     
+class Reference_Data(Base):
+    '''
+    simulation_id, type, t, x1, x2, x3, x4, x5
+    '''
+    __tablename__ = 'reference_data'
+    
+    id: Mapped[int] = mapped_column(primary_key=True)
+    simulation_id: Mapped[int] = mapped_column(ForeignKey('simulation_config.id'))
+    type: Mapped[str] = mapped_column(default=None, nullable=True)
+
+    t: Mapped[float] 
+    f1 : Mapped[float] = mapped_column(default=None, nullable=True)
+    f2 : Mapped[float] = mapped_column(default=None, nullable=True)
+    f3 : Mapped[float] = mapped_column(default=None, nullable=True)
+    f4 : Mapped[float] = mapped_column(default=None, nullable=True) 
+    f5 : Mapped[float] = mapped_column(default=None, nullable=True)
+
+    def __repr__(self):#id={self.id}, 
+        return f"Reference_Data(t={self.t}, f1={self.f1}, f2={self.f2}, f3={self.f3}, f4={self.f4}, f5={self.f5})"
+    
 # ------------------------------------------------------------------------------------
 # add Data
 # ------------------------------------------------------------------------------------
@@ -187,6 +207,16 @@ def add_simulation_data(simulation_id:int, time, states):
 
     addBulkData(bulk_list)
 
+def add_reference_data(simulation_id:int, type: str, time, states):
+    init()
+    data = data_to_dict(time, states)
+    # bulk insert
+    bulk_list = []
+    for i in range(len(time)):
+        bulk_list.append(Reference_Data(simulation_id=simulation_id, type=type, t=time[i], **data[i]))
+
+    addBulkData(bulk_list)
+
 # ------------------------------------------------------------------------------------
 # get Data
 # ------------------------------------------------------------------------------------
@@ -194,8 +224,10 @@ def add_simulation_data(simulation_id:int, time, states):
 def convert_config_values(config):
     config['init_state'] =  str_to_list(config['init_state'], dtype=float)
     config['system_param'] = str_to_list(config['system_param'], dtype=float)
-    if 'rms' in config:
+    if 'rms' in config and config['rms'] != '':
         config['rms'] = str_to_list(config['rms'], dtype=float)
+    else:
+        config['rms'] = []
     return config
 
 def list_to_str(lst: List, dtype: type = float) -> str:
@@ -231,6 +263,7 @@ def convert_data(data) -> Data:
     for element in data:
         state_row = []
         time.append(element.t)
+
         data_dict['time'].append(element.t)
         data_dict['f1'].append(element.f1)
         data_dict['f2'].append(element.f2)
@@ -247,6 +280,9 @@ def convert_data(data) -> Data:
     #     states.append(state_row)
 
     # return time, states
+    if len(data_dict['time']) == 0:
+            return None
+
     if data_dict['f5'][0] is None:
         del data_dict['f5']
     if data_dict['f4'][0] is None:
@@ -327,6 +363,16 @@ def get_simulation_data(id:int):
     init()
     with Session() as session:
         statement = sa.select(Simulation_Data).filter_by(simulation_id=id)
+        data = session.scalars(statement).all()
+    return convert_data(data)
+
+def get_reference_data(id:int, type:str=None):
+    init()
+    with Session() as session:
+        if type is None:
+            statement = sa.select(Reference_Data).filter_by(simulation_id=id)
+        else:
+            statement = sa.select(Reference_Data).filter_by(simulation_id=id, type=type)
         data = session.scalars(statement).all()
     return convert_data(data)
     
