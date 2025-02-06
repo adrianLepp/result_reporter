@@ -113,161 +113,9 @@ def create_report_plot(training_data, sim_data, header:List[str], xLabel='Time [
     fig.tight_layout()
     return fig
 
-def create_mpc_plot(training_data, sim_data, header:List[str], xLabel='Time ($\mathrm{s})$', yLabel='Water Level ($\mathrm{m}$)', reference_data=None, x_e=None, title=None):
-    width = '8.4 cm'
-
-    textWidth_cm = 8.4
-
-    init()
-    rows = 1
-    cols = 1
-    scale = 1.5
-    frac = 1
-
-    alpha_train = 1
-    alpha_est = 1
-    alpha_ref = 0.7
-
-    fig, ax1 = plt.subplots(rows, cols, figsize=set_size(scale*textWidth_cm * CM_to_PT, frac, (rows, cols)))
-    ax2 = ax1.twinx()
-
-    if x_e is not None:
-        equilibrium = np.array([x_e, x_e])
-        t_range = [training_data['time'][0], reference_data['time'][-1]]
 
 
-    for i in range(len(header)):
-        color = f'C{i}'
-        if 'u' in header[i]:
-            #ax2.plot(training_data['time'], training_data[f'f{i+1}'], 'o', label=f'$u_1$ setpoint', color=color, alpha=alpha_train)
-            #ax2.plot(sim_data['time'], sim_data[f'f{i+1}'], label=header[i], color=color, alpha=alpha_est)
-            ax2.plot(reference_data['time'], reference_data[f'f{i+1}'], label='$u_1$', color=color, alpha=alpha_est)
-            ax2.plot(t_range, equilibrium[:,i], '--', label='$u_1$ Reference',color=color, alpha=alpha_ref)
-            
-        else:
-            #ax1.plot(training_data['time'], training_data[f'f{i+1}'], 'o',label=f'$x_{i}$ setpoint',  color=color, alpha=alpha_train)
-            #ax1.plot(sim_data['time'], sim_data[f'f{i+1}'], label=header[i], color=color, alpha=alpha_est)
-            ax1.plot(reference_data['time'], reference_data[f'f{i+1}'], label=f'$x_{i}$', color=color, alpha=alpha_est) #'--', 
-            ax1.plot(t_range, equilibrium[:,i], '--', label=f'$x_{i}$ Reference',color=color, alpha=alpha_ref)
-        
-    lines, labels = ax1.get_legend_handles_labels()
-    lines2, labels2 = ax2.get_legend_handles_labels()
-    ax2.legend(lines + lines2, labels + labels2, loc=0)
-
-    # ax1.legend()
-    # ax2.legend()
-    ax1.set_xlabel(xLabel)
-    ax1.set_ylabel(yLabel)
-    ax2.set_ylabel('input flow rate ($\mathrm{m^3/s}$)')
-    ax1.grid(True)
-    if title:
-        ax1.set_title(title)
-
-    fig.tight_layout()
-    return fig
-
-def create_mpc_plot_2(training_data, sim_data, header:List[str], xLabel='Time ($\mathrm{s})$', yLabel='Water Level ($\mathrm{m}$)', reference_data=None, x_e=None,  close_constraint=False):
-    width = '8.4 cm'
-
-    textWidth_cm = 8.4
-
-    init()
-    rows = 2
-    cols = 1
-    frac = 1.2
-    h_scale = 0.6
-
-    alpha_train = 1
-    alpha_est = 1
-    alpha_ref = 0.7
-
-    fig, (ax1, ax2) = plt.subplots(rows, cols, figsize=set_size(textWidth_cm * CM_to_PT, frac, (rows, cols), heightScale=h_scale))
-    
-
-    if x_e is not None:
-        equilibrium = np.array([x_e, x_e])
-        t_range = [reference_data['time'][0], reference_data['time'][-1]]
-
-        lower = [0, 0, 0]
-        upper = [0.6, 0.6,2e-4]
-        lower_constraint = np.array([lower, lower])
-        upper_constraint = np.array([upper, upper] )
-
-        ref_line = '--'
-        constraint_line = ':'
-
-    for i in range(len(header)):
-        color = f'C{i}'
-        gray = 'C7'
-        if 'u' in header[i]:
-            #ax2.plot(training_data['time'], training_data[f'f{i+1}'], 'o', label=f'$u_1$ setpoint', color=color, alpha=alpha_train)
-            #ax2.plot(sim_data['time'], sim_data[f'f{i+1}'], label=header[i], color=color, alpha=alpha_est)
-            ax2.plot(reference_data['time'], reference_data[f'f{i+1}'], label='$u_1$', color=color, alpha=alpha_est)
-            ax2.plot(t_range, equilibrium[:,i], ref_line,color=color, alpha=alpha_ref) #, label='$u_1$ Reference'
-            
-            if close_constraint:
-                ax2.plot(t_range, equilibrium[:,i]*0.9, constraint_line, label='Constraints', color=gray, alpha=alpha_ref)
-                ax2.plot(t_range, equilibrium[:,i]*1.1, constraint_line,  color=gray, alpha=alpha_ref)
-            else:
-                ax2.plot(t_range, lower_constraint[:,i], constraint_line, label='Constraints', color=gray, alpha=alpha_ref)
-                #ax2.plot(t_range, upper_constraint[:,i], '--',  color=gray, alpha=alpha_ref)
-
-            
-            
-        else:
-            #ax1.plot(training_data['time'], training_data[f'f{i+1}'], 'o',label=f'$x_{i}$ setpoint',  color=color, alpha=alpha_train)
-            #ax1.plot(sim_data['time'], sim_data[f'f{i+1}'], label=header[i], color=color, alpha=alpha_est)
-            ax1.plot(reference_data['time'], reference_data[f'f{i+1}'], label=f'$x_{i+1}$', color=color, alpha=alpha_est) #'--', 
-            
-
-            if i == 1:
-                line1 = ax1.plot(t_range, equilibrium[:,i], ref_line, label=f'$Reference', color=color, alpha=alpha_ref)
-            else:
-                line0 = ax1.plot(t_range, equilibrium[:,i], ref_line, color=color, alpha=alpha_ref)#label=f'$x_{i+1}$ Reference',
-
-            if close_constraint:
-                if i == 1:
-                    ax1.plot(t_range, equilibrium[:,i]*0.9, constraint_line, label='Constraints', color=gray, alpha=alpha_ref)
-                else:
-                    ax1.plot(t_range, equilibrium[:,i]*0.9, constraint_line, color=gray, alpha=alpha_ref)
-                ax1.plot(t_range, equilibrium[:,i]*1.1, constraint_line,  color=gray, alpha=alpha_ref)
-            # else:
-            #     if i == 0:
-            #         ax1.plot(t_range, lower_constraint[:,i], '--', label='Constraints', color=gray, alpha=alpha_ref)
-            #     else:
-            #         ax1.plot(t_range, lower_constraint[:,i], '--', color=gray, alpha=alpha_ref)
-            #     ax1.plot(t_range, upper_constraint[:,i], '--', color=gray, alpha=alpha_ref)
-
-
-    from matplotlib.legend_handler import HandlerTuple
-    handles = [(line0, line1)]
-    labels = ['Reference']
-    ax1.legend(handles, labels, handler_map={tuple: HandlerTuple(ndivide=None)})
-
-    fig.tight_layout()
-    fig.subplots_adjust(hspace=0.1)#, wspace=-0.8 
-    ax1.legend(loc='upper right', fancybox=True, framealpha=0.5,ncol=3)#, ncol=stateN, columnspacing=columnspacing, handletextpad=handletextpad
-    ax2.legend(loc='upper right', fancybox=True, framealpha=0.5,ncol=2)
-    ax2.set_xlabel(xLabel)
-    ax1.set_ylabel(yLabel)
-    ax2.set_ylabel('Flow rate ($\mathrm{m^3/s}$)')
-    ax1.grid(True)
-    ax2.grid(True)
-    #ax2.yaxis.get_offset_text().set_position((-0.1, -0.5))
-    ax1.set_xticklabels([])
-    #ax1.set_yticklabels([0.05,0.1,0.15,0.2,0.25])
-    ax1.set_xlim(t_range[0], t_range[1])
-    ax2.set_xlim(t_range[0], t_range[1])
-
-    ax1.set_ylim(0.05-0.005, 0.255)
-    ax2.set_ylim(0-0.00001, 0.00015+0.00001)
-
-    
-    return fig
-
-
-
-def create_mpc_plot_3(training_data, sim_data, header:List[str], xLabel='Time ($\mathrm{s})$', yLabel='Water Level ($\mathrm{m}$)', reference_data=None, x_e=None,  close_constraint=False):
+def create_mpc_plot(training_data, sim_data, header:List[str], xLabel='Time ($\mathrm{s})$', yLabel='Water Level ($\mathrm{m}$)', reference_data=None, x_e=None,  close_constraint=False):
     width = '8.4 cm'
 
     textWidth_cm = 8.4
@@ -363,6 +211,169 @@ def create_mpc_plot_3(training_data, sim_data, header:List[str], xLabel='Time ($
     #ax1.set_yticklabels([0.05,0.1,0.15,0.2,0.25])
 
     plt.plot()
+    return fig
+
+def plot_loss(loss):
+    init()
+    rows = 1
+    cols = 1
+    frac = 1
+    h_scale = 0.5
+
+    fig, ax1 = plt.subplots(rows, cols, figsize=set_size(textWidth, frac, (rows, cols), heightScale=h_scale))
+
+    ax1.plot(loss, label='Training Loss')
+    ax1.set_xlabel('Iteration')
+    ax1.set_ylabel('Loss')
+    
+    ax1.legend()
+    ax1.grid(True)
+    fig.tight_layout()
+    return fig
+
+def plot_error(gp_error, de_error, header:List[str], xLabel='Time ($\mathrm{s})$', yLabel='Absolute error ($\mathrm{m}$)'):
+    init()
+    rows = 2
+    cols = 1
+    frac = 1
+    h_scale = 0.6
+
+    alpha_train = 1
+    alpha_gp = 0.8
+    alpha_de = 0.8
+
+    line_style_de = '--'
+    line_style_gp = '-'
+
+    lw_constr = 1
+    t_range = [gp_error['time'][0], gp_error['time'][-1]]
+
+    fig, (ax1, ax2) = plt.subplots(rows, cols, figsize=set_size(textWidth, frac, (rows, cols), heightScale=h_scale))
+
+    lines_1_gp = []
+    lines_1_de = []
+    lines_2_gp = []
+    lines_2_de = []
+
+    for i in range(len(header)):
+        color = f'C{i}'
+        if 'u' in header[i]:
+            lines_2_gp.append(ax2.plot(gp_error['time'], gp_error[f'f{i+1}'], line_style_gp, color=color, alpha=alpha_gp)[0])
+            lines_2_de.append(ax2.plot(de_error['time'], de_error[f'f{i+1}'], line_style_de, color=color, alpha=alpha_de)[0])
+        else:
+            lines_1_gp.append(ax1.plot(gp_error['time'], gp_error[f'f{i+1}'], line_style_gp, color=color, alpha=alpha_gp)[0])
+            lines_1_de.append(ax1.plot(de_error['time'], de_error[f'f{i+1}'], line_style_de, color=color, alpha=alpha_de)[0])
+
+
+    labels_1 = ['LODEGP $x_1$', 'LODEGP $x_2$', 'lin. model $x_1$', 'lin. model $x_2$',]
+    labels_2 = ['LODEGP $u_1$', 'lin. model $u_1$']
+    # lines_1_ref = (lines_1_ref[0], lines_1_ref[1])
+
+    handles_1 = [lines_1_gp[0], lines_1_gp[1], lines_1_de[0], lines_1_de[1],]
+    handles_2 = [lines_2_gp[0], lines_2_de[0]]
+    columnspacing = 0.5
+    handletextpad = 0.5
+    handlelength = 1.5
+    ax1.legend(handles_1, labels_1, handler_map={tuple: HandlerTuple(ndivide=None)}, fancybox=True, framealpha=0.5,ncol=2, columnspacing=columnspacing, handletextpad=handletextpad,handlelength=handlelength)#, loc='upper right',
+    ax2.legend(handles_2, labels_2, handler_map={tuple: HandlerTuple(ndivide=None)}, fancybox=True, framealpha=0.5,ncol=2, columnspacing=columnspacing, handletextpad=handletextpad,handlelength=handlelength)#, loc='upper right',
+
+    fig.tight_layout()
+    fig.subplots_adjust(hspace=0.1)#, wspace=-0.8 
+    # ax1.legend(loc='upper right', fancybox=True, framealpha=0.5,ncol=3)#, ncol=stateN, columnspacing=columnspacing, handletextpad=handletextpad
+    # ax2.legend(loc='upper right', fancybox=True, framealpha=0.5,ncol=2)
+    ax2.set_xlabel(xLabel)
+    ax1.set_ylabel(yLabel)
+    ax2.set_ylabel('Absolute error ($\mathrm{m^3/s}$)')
+    ax1.grid(True)
+    ax2.grid(True)
+    ax1.set_xticklabels([])
+    ax1.set_xlim(t_range[0], t_range[1])
+    ax2.set_xlim(t_range[0], t_range[1])
+    # ax1.set_ylim(0.05-0.005, 0.255)
+    # ax2.set_ylim(0-0.00001, 0.00015+0.00001)
+
+
+    #ax2.yaxis.get_offset_text().set_position((-0.1, -0.5))
+    #ax1.set_yticklabels([0.05,0.1,0.15,0.2,0.25])
+
+    plt.plot()
+    return fig
+
+def plot_states(train_data, gp_data, de_data, header:List[str], xLabel='Time ($\mathrm{s})$', yLabel='Fill level ($\mathrm{m}$)', uncertainty=None):
+    init()
+    rows = 2
+    cols = 1
+    frac = 1
+    h_scale = 0.6
+
+    alpha_train = 0.8
+    alpha_gp = 0.8
+    alpha_de = 0.8
+    alpha_uncertainty = 0.1
+
+    line_style_de = '--'
+    line_style_gp = '-'
+    line_style_train = '.'
+
+    lw_constr = 1
+    t_range = [gp_data.time[0], gp_data.time[-1]]
+
+    fig, (ax1, ax2) = plt.subplots(rows, cols, figsize=set_size(textWidth, frac, (rows, cols), heightScale=h_scale))
+
+    lines_1_train = []
+    lines_1_gp = []
+    lines_1_de = []
+    lines_2_train = []
+    lines_2_gp = []
+    lines_2_de = []
+
+    for i in range(len(header)):
+        color = f'C{i}'
+        if 'u' in header[i]:
+            lines_2_train.append(ax2.plot(train_data.time, train_data.y[:,i], line_style_train, color=color, alpha=alpha_train)[0])
+            lines_2_gp.append(ax2.plot(gp_data.time, gp_data.y[:,i], line_style_gp, color=color, alpha=alpha_gp)[0])
+            lines_2_de.append(ax2.plot(de_data.time, de_data.y[:,i], line_style_de, color=color, alpha=alpha_de)[0])
+
+            if gp_data.uncertainty is not None:
+                ax2.fill_between(gp_data.time, gp_data.uncertainty['lower'][:,i], gp_data.uncertainty['upper'][:,i], alpha=alpha_uncertainty, color=color)
+        else:
+            lines_1_train.append(ax1.plot(train_data.time, train_data.y[:,i], line_style_train, color=color, alpha=alpha_train)[0])
+            lines_1_gp.append(ax1.plot(gp_data.time, gp_data.y[:,i], line_style_gp, color=color, alpha=alpha_gp)[0])
+            lines_1_de.append(ax1.plot(de_data.time, de_data.y[:,i], line_style_de, color=color, alpha=alpha_de)[0])
+            if gp_data.uncertainty is not None:
+                ax1.fill_between(gp_data.time, gp_data.uncertainty['lower'][:,i], gp_data.uncertainty['upper'][:,i], alpha=alpha_uncertainty, color=color)
+
+
+    labels_1 = ['Training $x_1$', 'Training $x_2$', 'LODEGP $x_1$', 'LODEGP $x_2$', 'lin. model $x_1$', 'lin. model $x_2$',]
+    labels_2 = ['Training $u_1$', 'LODEGP $u_1$', 'lin. model $u_1$']
+    # lines_1_ref = (lines_1_ref[0], lines_1_ref[1])
+
+    handles_1 = [lines_1_train[0], lines_1_train[1], lines_1_gp[0], lines_1_gp[1], lines_1_de[0], lines_1_de[1],]
+    handles_2 = [lines_2_train[0], lines_2_gp[0], lines_2_de[0]]
+    columnspacing = 0.5
+    handletextpad = 0.5
+    handlelength = 1.5
+    ax1.legend(handles_1, labels_1, handler_map={tuple: HandlerTuple(ndivide=None)},  fancybox=True, framealpha=0.5,ncol=3, columnspacing=columnspacing, handletextpad=handletextpad,handlelength=handlelength) #loc='upper right',
+    ax2.legend(handles_2, labels_2, handler_map={tuple: HandlerTuple(ndivide=None)}, fancybox=True, framealpha=0.5,ncol=3, columnspacing=columnspacing, handletextpad=handletextpad,handlelength=handlelength) #loc='upper right',
+
+    fig.tight_layout()
+    fig.subplots_adjust(hspace=0.1)#, wspace=-0.8 
+    # ax1.legend(loc='upper right', fancybox=True, framealpha=0.5,ncol=3)#, ncol=stateN, columnspacing=columnspacing, handletextpad=handletextpad
+    # ax2.legend(loc='upper right', fancybox=True, framealpha=0.5,ncol=2)
+    ax2.set_xlabel(xLabel)
+    ax1.set_ylabel(yLabel)
+    ax2.set_ylabel('Flow rate ($\mathrm{m^3/s}$)')
+    ax1.grid(True)
+    ax2.grid(True)
+    ax1.set_xticklabels([])
+    ax1.set_xlim(t_range[0], t_range[1])
+    ax2.set_xlim(t_range[0], t_range[1])
+    # ax1.set_ylim(0.05-0.005, 0.255)
+    # ax2.set_ylim(0-0.00001, 0.00015+0.00001)
+
+
+    #ax2.yaxis.get_offset_text().set_position((-0.1, -0.5))
+    #ax1.se
     return fig
 
 
