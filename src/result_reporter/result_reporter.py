@@ -56,8 +56,8 @@ def create_report(sim_id, info_text:str=None, extra_plot:str=None):
                 itemize.add_item("dt: " + str(simulation_config['dt']))
                 # add system parameter
                 itemize.add_item(f"System Param: [")
-                for i, state in enumerate(system_description['states']):
-                    doc.append(f"{state}, ")
+                for i, parameter in enumerate(system_description['parameters']):
+                    doc.append(f"{parameter}, ")
                 doc.append("] = [")
                 for i, state in enumerate(system_description['parameters']):
                     doc.append(f"{parse_float(model_config['system_param'][i])}, ")
