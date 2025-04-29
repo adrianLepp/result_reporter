@@ -1,5 +1,6 @@
 from typing import TypedDict, List, Optional
 
+import numpy as np
 class System_Description(TypedDict):
     id:int
     name:str
@@ -34,3 +35,14 @@ class Data(TypedDict):
     f3:Optional[List[float]]
     f4:Optional[List[float]]
     f5:Optional[List[float]]
+
+
+def convert_to_DataDef(data:Data):
+    time = data['time']
+    y = []
+    for key in data:
+        if key == 'time':
+            continue
+        y.append(data[key])
+
+    

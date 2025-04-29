@@ -26,6 +26,7 @@ def init():
     if not INIT:
         # in LaTex show the textWidth with '\the\textwidth'
         textWidth= 469.4704
+        plt.rcParams['text.usetex'] = True
         try:
             print(plt.style.available)
             print("Your style sheets are located at: {}".format(path.join(mpl.__path__[0], 'mpl-data', 'stylelib')))
@@ -133,8 +134,9 @@ def create_mpc_plot(training_data, sim_data, header:List[str], xLabel='Time ($\m
     alpha_ref = 0.7
 
     lw_constr = 1
+    t_width = textWidth_cm * CM_to_PT  
 
-    fig, (ax1, ax2) = plt.subplots(rows, cols, figsize=set_size(textWidth_cm * CM_to_PT, frac, (rows, cols), heightScale=h_scale))
+    fig, (ax1, ax2) = plt.subplots(rows, cols, figsize=set_size(t_width, frac, (rows, cols), heightScale=h_scale))
     
 
     if x_e is not None:
@@ -166,7 +168,7 @@ def create_mpc_plot(training_data, sim_data, header:List[str], xLabel='Time ($\m
                 ax2.plot(t_range, equilibrium[:,i]*1.1, constraint_line,  color=gray, alpha=alpha_ref, lw=lw_constr)
             else:
                 lines_2_constr = ax2.plot(t_range, lower_constraint[:,i], constraint_line, label='Constraints', color=gray, alpha=alpha_ref, lw=lw_constr)[0]
-                #ax2.plot(t_range, upper_constraint[:,i], '--',  color=gray, alpha=alpha_ref)
+                ax2.plot(t_range, upper_constraint[:,i], '--',  color=gray, alpha=alpha_ref)
         else:
             lines_1_x.append(ax1.plot(reference_data['time'], reference_data[f'f{i+1}'], color=color, alpha=alpha_est)[0]) 
             lines_1_ref.append(ax1.plot(t_range, equilibrium[:,i], ref_line, color=color, alpha=alpha_ref)[0])
@@ -194,7 +196,7 @@ def create_mpc_plot(training_data, sim_data, header:List[str], xLabel='Time ($\m
     ax2.legend(handles_2, labels_2, handler_map={tuple: HandlerTuple(ndivide=None)},loc='upper right', fancybox=True, framealpha=0.5,ncol=3, columnspacing=columnspacing, handletextpad=handletextpad,handlelength=handlelength)
 
     fig.tight_layout()
-    fig.subplots_adjust(hspace=0.1)#, wspace=-0.8 
+    fig.subplots_adjust(hspace=0.2)#, wspace=-0.8 #FIXME
     # ax1.legend(loc='upper right', fancybox=True, framealpha=0.5,ncol=3)#, ncol=stateN, columnspacing=columnspacing, handletextpad=handletextpad
     # ax2.legend(loc='upper right', fancybox=True, framealpha=0.5,ncol=2)
     ax2.set_xlabel(xLabel)
@@ -205,8 +207,8 @@ def create_mpc_plot(training_data, sim_data, header:List[str], xLabel='Time ($\m
     ax1.set_xticklabels([])
     ax1.set_xlim(t_range[0], t_range[1])
     ax2.set_xlim(t_range[0], t_range[1])
-    ax1.set_ylim(0.05-0.005, 0.255)
-    ax2.set_ylim(0-0.00001, 0.00015+0.00001)
+    # ax1.set_ylim(0., 0.3)
+    # ax2.set_ylim(0-0.00001, 0.00015+0.00001) #TODO
 
 
     #ax2.yaxis.get_offset_text().set_position((-0.1, -0.5))
@@ -215,25 +217,35 @@ def create_mpc_plot(training_data, sim_data, header:List[str], xLabel='Time ($\m
     plt.plot()
     return fig
 
-def plot_loss(loss):
+def plot_loss(loss:dict):
     init()
     rows = 1
     cols = 1
     frac = 1
-    h_scale = 0.5
+    h_scale = 0.8
 
-    fig, ax1 = plt.subplots(rows, cols, figsize=set_size(textWidth, frac, (rows, cols), heightScale=h_scale))
+    fig, ax1 = plt.subplots(rows, cols, figsize=set_size(2*textWidth/3, frac, (rows, cols), heightScale=h_scale))
 
-    ax1.plot(loss, label='Training Loss')
+    i = 0
+    length = 0
+    for key, values in loss.items():
+        length = len(values)
+        color = f'C{3+i}'
+        ax1.plot(values, label=key, color=color)
+        i += 1
+
+    # ax1.plot(loss, label='Training Loss')
     ax1.set_xlabel('Iteration')
-    ax1.set_ylabel('Loss')
+    ax1.set_ylabel('Training Loss')
+    ax1.set_ylim(-12,3)
+    ax1.set_xlim(0, length-1)
     
     ax1.legend()
     ax1.grid(True)
     fig.tight_layout()
     return fig
 
-def plot_error(gp_error, de_error, header:List[str], xLabel='Time ($\mathrm{s})$', yLabel='Absolute error ($\mathrm{m}$)'):
+def plot_error(gp_error, de_error=None, header:List[str]=None, xLabel='Time ($\mathrm{s})$', yLabel='Absolute error ($\mathrm{m}$)', uncertainty=None):
     init()
     rows = 2
     cols = 1
@@ -261,18 +273,36 @@ def plot_error(gp_error, de_error, header:List[str], xLabel='Time ($\mathrm{s})$
         color = f'C{i}'
         if 'u' in header[i]:
             lines_2_gp.append(ax2.plot(gp_error['time'], gp_error[f'f{i+1}'], line_style_gp, color=color, alpha=alpha_gp)[0])
-            lines_2_de.append(ax2.plot(de_error['time'], de_error[f'f{i+1}'], line_style_de, color=color, alpha=alpha_de)[0])
+            if de_error is not None:
+                lines_2_de.append(ax2.plot(de_error['time'], de_error[f'f{i+1}'], line_style_de, color=color, alpha=alpha_de)[0])
+            if uncertainty is not None:
+                zero_vector = np.zeros_like(gp_error['time'])
+                ax2.fill_between(gp_error['time'], zero_vector , uncertainty[:,i], alpha=alpha_gp, color=color)
         else:
             lines_1_gp.append(ax1.plot(gp_error['time'], gp_error[f'f{i+1}'], line_style_gp, color=color, alpha=alpha_gp)[0])
-            lines_1_de.append(ax1.plot(de_error['time'], de_error[f'f{i+1}'], line_style_de, color=color, alpha=alpha_de)[0])
+            if de_error is not None:
+                lines_1_de.append(ax1.plot(de_error['time'], de_error[f'f{i+1}'], line_style_de, color=color, alpha=alpha_de)[0])
+            if uncertainty is not None:
+                zero_vector = np.zeros_like(gp_error['time'])
+                ax1.fill_between(gp_error['time'], zero_vector , uncertainty[:,i], alpha=alpha_gp, color=color)
 
 
-    labels_1 = ['LODEGP $x_1$', 'LODEGP $x_2$', 'lin. model $x_1$', 'lin. model $x_2$',]
-    labels_2 = ['LODEGP $u_1$', 'lin. model $u_1$']
+    labels_1 = ['LODEGP $x_1$', 'LODEGP $x_2$']
+    labels_2 = ['LODEGP $u_1$']
+    handles_1 = [lines_1_gp[0], lines_1_gp[1]]
+    handles_2 = [lines_2_gp[0]]
+
+    if de_error is not None:
+        labels_1.append('linear model $x_1$')
+        labels_1.append('linear model $x_2$')
+        labels_2.append('linear model $u_1$')
+        handles_1.append(lines_1_de[0])
+        handles_1.append(lines_1_de[1]) # lines_1_de[0], lines_1_de[1],
+        handles_2.append(lines_2_de[0]) # lines_2_de[0], lines_2_de[1], lines_2_de[2]
+    
     # lines_1_ref = (lines_1_ref[0], lines_1_ref[1])
 
-    handles_1 = [lines_1_gp[0], lines_1_gp[1], lines_1_de[0], lines_1_de[1],]
-    handles_2 = [lines_2_gp[0], lines_2_de[0]]
+    
     columnspacing = 0.5
     handletextpad = 0.5
     handlelength = 1.5
@@ -301,10 +331,10 @@ def plot_error(gp_error, de_error, header:List[str], xLabel='Time ($\mathrm{s})$
     plt.plot()
     return fig
 
-dflt_data_names = ['LODEGP', 'Training',  'lin. model']
+dflt_data_names = ['LODEGP', 'linear model', 'Training']
 dflt_xLabel = 'Time ($\mathrm{s})$'
 dflt_yLabel = ['Fill level ($\mathrm{m}$)', 'Flow rate ($\mathrm{m^3/s}$)']
-dflt_headers = ['x1', 'x2', 'u']
+dflt_headers = ['$x_1$', '$x_2$', '$u_1$']
 
 def plot_states(data, data_names=dflt_data_names, header=dflt_headers, xLabel=dflt_xLabel, yLabel=dflt_yLabel, uncertainty=None, title=None):
     init()
@@ -313,8 +343,8 @@ def plot_states(data, data_names=dflt_data_names, header=dflt_headers, xLabel=df
     frac = 1
     h_scale = 0.6
 
-    alpha = [0.8, 0.8, 0.8]
-    line_style = [ '-', '--' , '.']
+    alpha = [0.8, 0.8, 0.8, 0.8, 0.8,0.8, 0.8, 0.8, 0.8, 0.8] #FIXME
+    line_style = [ '-', '--' ,  '.', '-.', ':',  '.', '-.', ':']
 
     alpha_uncertainty = 0.1
 
@@ -351,8 +381,8 @@ def plot_states(data, data_names=dflt_data_names, header=dflt_headers, xLabel=df
     columnspacing = 0.5
     handletextpad = 0.5
     handlelength = 1.5
-    ax1.legend(handles_1, labels_1, handler_map={tuple: HandlerTuple(ndivide=None)},  fancybox=True, framealpha=0.5,ncol=2, columnspacing=columnspacing, handletextpad=handletextpad,handlelength=handlelength) #loc='upper right',
-    ax2.legend(handles_2, labels_2, handler_map={tuple: HandlerTuple(ndivide=None)}, fancybox=True, framealpha=0.5,ncol=2, columnspacing=columnspacing, handletextpad=handletextpad,handlelength=handlelength) #loc='upper right',
+    ax1.legend(handles_1, labels_1, handler_map={tuple: HandlerTuple(ndivide=None)},  fancybox=True, framealpha=0.5,ncol=len(data_names), columnspacing=columnspacing, handletextpad=handletextpad,handlelength=handlelength) #loc='upper right',
+    ax2.legend(handles_2, labels_2, handler_map={tuple: HandlerTuple(ndivide=None)}, fancybox=True, framealpha=0.5,ncol=len(data_names), columnspacing=columnspacing, handletextpad=handletextpad,handlelength=handlelength) #loc='upper right',
 
     fig.tight_layout()
     fig.subplots_adjust(hspace=0.1)#, wspace=-0.8 
@@ -374,6 +404,214 @@ def plot_states(data, data_names=dflt_data_names, header=dflt_headers, xLabel=df
     #ax2.yaxis.get_offset_text().set_position((-0.1, -0.5))
     #ax1.se
     return fig
+
+def plot_weights(x, weights, x_label=dflt_xLabel):
+    init()
+    y_label = 'model weight'
+    rows = 1
+    cols = 1
+    frac = 1
+    h_scale = 0.5
+
+    columnspacing = 0.5
+    handletextpad = 0.5
+    handlelength = 1.5
+
+    fig, ax1 = plt.subplots(rows, cols, figsize=set_size(textWidth, frac, (rows, cols), heightScale=h_scale))
+
+    for i, weight in enumerate(weights):
+        ax1.plot(x, weight, label=f'model {i+1}')
+        
+        #plt.plot(x, sum(weights), label='Sum')
+    ax1.legend(ncol=len(weights), fancybox=True, framealpha=0.5,columnspacing=columnspacing, handletextpad=handletextpad,handlelength=handlelength, loc='upper center')
+    ax1.set_xlabel(x_label)
+    ax1.set_ylabel(y_label)
+    ax1.set_xlim(x[0], x[-1])
+    ax1.grid(True)
+    # ax1.set_ylim(-0.05, 1.15)
+    return fig
+
+def plot_trajectory(test_data, points:dict, ax_labels=['Fill level tank 1 (m)', 'Fill level tank 2 (m)'], labels=['GP']):
+    init()
+
+    rows = 1
+    cols = 1
+    frac = 1
+    h_scale = 1
+
+    (fig_width_in, fig_height_in) = set_size(textWidth, frac, (rows, cols), heightScale=h_scale)
+    fig, ax1 = plt.subplots(rows, cols, figsize=(fig_height_in, fig_height_in))
+    # plt.figure()
+    if isinstance(test_data, list):
+        for i in range(len(test_data)):
+            ax1.plot(test_data[i].y[:,0],test_data[i].y[:,1], label=labels[i])
+    else:
+        ax1.plot(test_data.y[:,0],test_data.y[:,1], label='predicted trajectory')
+
+    for key in points:
+        if points[key] is not None:
+            ax1.plot(points[key][0],points[key][1], 'o', label=key)
+
+
+    # ax1.plot(centers[0],centers[1], 'o', color='C7', label='model centers')
+    ax1.set_xlabel(ax_labels[0])
+    ax1.set_ylabel(ax_labels[1])
+    ax1.legend(fancybox=True, framealpha=0.5)
+    ax1.grid(True)
+    # ax1.set_xlim(0, 0.6)
+    # ax1.set_ylim(0, 0.6)
+
+    return fig
+
+def _plot_trajectory(test_data, points:dict, ax_labels=['Fill level tank 1 (m)', 'Fill level tank 2 (m)'], labels=['GP']):
+    init()
+
+    rows = 1
+    cols = 1
+    frac = 1
+    h_scale = 1
+
+    (fig_width_in, fig_height_in) = set_size(textWidth, frac, (rows, cols), heightScale=h_scale)
+    fig, ax1 = plt.subplots(rows, cols, figsize=(fig_height_in, fig_height_in))
+    # plt.figure()
+    if isinstance(test_data, list):
+        for i in range(len(test_data)):
+            ax1.plot(test_data[i][f'f{1}'],test_data[i][f'f{2}'], label=labels[i])
+    else:
+        ax1.plot(test_data[f'f{1}'],test_data[f'f{2}'], label='predicted trajectory')
+
+    for key in points:
+        ax1.plot(points[key][0],points[key][1], 'o', label=key)
+
+
+    # ax1.plot(centers[0],centers[1], 'o', color='C7', label='model centers')
+    ax1.set_xlabel(ax_labels[0])
+    ax1.set_ylabel(ax_labels[1])
+    ax1.legend(fancybox=True, framealpha=0.5)
+    ax1.grid(True)
+    # ax1.set_xlim(0, 0.6)
+    # ax1.set_ylim(0, 0.6)
+
+    return fig
+
+
+line_style = [ '-', '--' ,  '.', '-.', ':',  '.', '-.', ':']
+
+def plot_single_states(data, data_names=dflt_data_names, header=dflt_headers, xLabel=dflt_xLabel, yLabel=dflt_yLabel, line_styles= line_style, colors=None):
+    init()
+    rows = 1
+    cols = 3
+    # cols = data[0].state_dim + data[0].control_dim
+    frac = 1
+    h_scale = 1
+
+    alpha = [0.75, 0.75, 0.75, 0.8, 0.8,0.8, 0.8, 0.8, 0.8, 0.8] #FIXME
+    
+
+    alpha_uncertainty = 0.1
+
+    lw_constr = 1
+    t_range = [data[0].time[0], data[0].time[-1]] #TODO
+
+    size = set_size(textWidth, frac, (rows, cols), heightScale=h_scale)
+    fig, axes = plt.subplots(rows, cols, figsize=(size[0]* 2,size[1]*2))
+
+    for i in range(len(header)):
+        for j in range(len(data)):
+            if colors is not None:
+                color = f'C{colors[j]}'
+            else:
+                color = f'C{j}'
+            axes[i].plot(data[j].time, data[j].y[:,i],line_styles[j], color=color, alpha=alpha[j], label=data_names[j])
+            if data[j].uncertainty is not None:
+                axes[i].fill_between(data[j].time, data[j].uncertainty['lower'][:,i], data[j].uncertainty['upper'][:,i], alpha=alpha_uncertainty, color=color)
+
+    for i in range(len(header)):
+        axes[i].legend(fancybox=True, framealpha=0.5, loc='upper right')
+        axes[i].set_xlabel(xLabel) 
+        axes[i].set_ylabel(yLabel[i]) 
+        axes[i].grid(True)
+        axes[i].set_xlim(t_range[0], t_range[1])
+
+    # axes[-1].set_ylim(-6, 4)
+        
+
+    fig.tight_layout()
+    fig.subplots_adjust(hspace=0.1)
+    
+    return fig
+
+
+
+def _plot_single_states(data, data_names=dflt_data_names, header=dflt_headers, xLabel=dflt_xLabel, yLabel=dflt_yLabel):
+    init()
+    rows = 1
+    cols = 3
+    # cols = data[0].state_dim + data[0].control_dim
+    frac = 1
+    h_scale = 1
+
+    alpha = [0.75, 0.75, 0.75, 0.8, 0.8,0.8, 0.8, 0.8, 0.8, 0.8] #FIXME
+    line_style = [ '-', '--' ,  '.', '-.', ':',  '.', '-.', ':']
+
+    alpha_uncertainty = 0.1
+
+    lw_constr = 1
+    t_range = [data[0]['time'][0], data[0]['time'][-1]] #TODO
+
+    size = set_size(textWidth, frac, (rows, cols), heightScale=h_scale)
+    fig, axes = plt.subplots(rows, cols, figsize=(size[0]* 2,size[1]*2))
+
+    for i in range(len(header)):
+        for j in range(len(data)):
+            color = f'C{j}'
+            axes[i].plot(data[j]['time'], data[j][f'f{i+1}'], color=color, alpha=alpha[j], label=data_names[j])
+
+    for i in range(len(header)):
+        axes[i].legend(fancybox=True, framealpha=0.5, loc='upper right')
+        axes[i].set_xlabel(xLabel) 
+        axes[i].set_ylabel(yLabel[i]) 
+        axes[i].grid(True)
+        axes[i].set_xlim(t_range[0], t_range[1])
+
+    # axes[-1].set_ylim(-6, 4)
+        
+
+    fig.tight_layout()
+    fig.subplots_adjust(hspace=0.1)
+    
+    return fig
+
+
+def surface_plot(x1:np.ndarray, x2:np.ndarray, y:np.ndarray, x1_ref:np.ndarray, x2_ref:np.ndarray, y_ref:np.ndarray, axisNames = [r'$x_1$', r'$x_2$', r'$y$'], labels = [r'$\hat{\alpha(\boldmath{x})}$', r'${\alpha(\boldmath{x})}$']):
+    init()
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    ax.view_init(elev=15, azim=-120)
+    ax.plot_surface(x1, x2, y, cmap='viridis', alpha=0.7, label=labels[0])
+
+    ax.plot(x1_ref, x2_ref , y_ref, 'r.', label=labels[1])
+    ax.set_xlabel(axisNames[0])
+    ax.set_ylabel(axisNames[1])  
+    ax.set_zlabel(axisNames[2])
+    ax.legend()
+    # ax.set_title(r'$\alpha$')
+
+    if 'beta' in labels[0]:
+        ax.set_zlim(0, 2)
+
+    return fig
+    # plt.show()
+    # fig = plt.figure()
+    # ax = fig.add_subplot(111, projection='3d')
+    # ax.plot_surface(test_points1.numpy(), test_points2.numpy(), test_beta.detach().numpy().reshape(l, l), cmap='viridis')
+    # ax.set_xlabel(r'$\phi$')
+    # ax.set_ylabel(r'$\dot{\phi}$')
+    # ax.set_zlabel(r'$\beta$')
+    # ax.set_title(r'$\beta$')
+    # plt.show()
+    # return 
 
 
 def save_plot_to_pdf(fig, fileName:str):
