@@ -8,6 +8,7 @@ import pandas as pd
 from result_reporter.data_loader import loadDataFromCSV, loadParamfromJson
 from typing import List
 from matplotlib.legend_handler import HandlerTuple
+from scipy.interpolate import make_interp_spline
 
 #https://jwalton.info/Embed-Publication-Matplotlib-Latex/   
 
@@ -18,7 +19,7 @@ from matplotlib.legend_handler import HandlerTuple
 INIT = False
 
 fileFolder = '../data/'
-imgFolder = '../img/'
+imgFolder = '../lodegp-mpc-talk/plots/'
 fileFormat = 'pdf'
 
 def init():
@@ -612,6 +613,57 @@ def surface_plot(x1:np.ndarray, x2:np.ndarray, y:np.ndarray, x1_ref:np.ndarray, 
     # ax.set_title(r'$\beta$')
     # plt.show()
     # return 
+
+
+def plot_error_bars():
+    init()
+    rows = 1
+    cols = 1
+    frac = 1
+    h_scale = 0.5
+
+    columnspacing = 0.5
+    handletextpad = 0.5
+    handlelength = 1.5
+
+    fig, ax1 = plt.subplots(rows, cols, figsize=set_size(0.8*398.3386, frac, (rows, cols), heightScale=h_scale))
+    x = [1,2,3,4,5]
+    y = [2,2,2,2,2]
+    error = [2,2,2,2,2]
+    l_width = 1.5
+    c_len = 8
+
+    x_trajectory = np.array([0,1,2,3,4,5,6,7,8,9,10])
+    y_trajectory = np.array([1,2,3.5,2,1,1.5,2,2.2,2.4,2.6,2.8])
+    X_Y_Spline = make_interp_spline(x_trajectory, y_trajectory)
+    X_ = np.linspace(x_trajectory.min(), x_trajectory.max(), 500)
+    Y_ = X_Y_Spline(X_)
+
+    ax1.plot(X_, Y_, color='C7', linewidth=1, alpha=0.75)
+
+    ax1.errorbar([0],[1], [.0], fmt = "o", color='C0', elinewidth=l_width, capsize=c_len, capthick=l_width, label='initial constraint')
+    ax1.errorbar(x,y, error, fmt = "o", color='C1', elinewidth=l_width, capsize=c_len, capthick=l_width, label='soft constraints') #, ecolor='C1'
+    ax1.errorbar([10],[3], [.25], fmt = "o", color='C2', elinewidth=l_width, capsize=c_len, capthick=l_width, label='endpoint constraint')#, 
+
+    
+    
+
+    ax1.legend() 
+    #.k
+
+    ax1.set_yticks([0, 1,2, 3, 4])
+    ax1.set_yticklabels(['$z_{{min}}$', '$z_0$', '${z_{{min}}+z_{{max}}}/{2}$', '$z_{{ref}}$', '$z_{{max}}$'])
+
+    ax1.set_xticks([0, 5, 10])
+    ax1.set_xticklabels(['$t_0$', '$t_T$', '$t_{{ref}}$'])
+    ax1.tick_params(axis='both', which='major', labelsize=12)
+    # ax1.set_xlabel('time (s)')
+    # ax1.set_ylabel('state x')
+    
+    ax1.grid(True)
+    
+    return fig
+
 
 
 def save_plot_to_pdf(fig, fileName:str):
